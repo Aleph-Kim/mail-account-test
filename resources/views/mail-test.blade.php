@@ -5,7 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>메일 발송 테스트</title>
     <style>
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -20,7 +24,7 @@
         .card {
             background: #fff;
             border-radius: 12px;
-            box-shadow: 0 4px 24px rgba(0,0,0,.08);
+            box-shadow: 0 4px 24px rgba(0, 0, 0, .08);
             width: 100%;
             max-width: 680px;
             padding: 2rem;
@@ -36,9 +40,15 @@
             gap: .5rem;
         }
 
-        h1 span { font-size: 1.5rem; }
+        h1 span {
+            font-size: 1.5rem;
+        }
 
-        .field { display: flex; flex-direction: column; gap: .35rem; }
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: .35rem;
+        }
 
         label {
             font-size: .78rem;
@@ -62,11 +72,20 @@
 
         input:focus, select:focus {
             border-color: #6366f1;
-            box-shadow: 0 0 0 3px rgba(99,102,241,.12);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, .12);
         }
 
-        .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-        .row-3 { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 1rem; }
+        .row-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .row-3 {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 1rem;
+        }
 
         .divider {
             border: none;
@@ -88,8 +107,13 @@
             margin-top: 1.25rem;
         }
 
-        .btn:hover { background: #4f46e5; }
-        .btn:active { background: #4338ca; }
+        .btn:hover {
+            background: #4f46e5;
+        }
+
+        .btn:active {
+            background: #4338ca;
+        }
 
         .alert {
             border-radius: 8px;
@@ -104,7 +128,10 @@
             color: #166534;
         }
 
-        .alert-success::before { content: '✓  '; font-weight: 700; }
+        .alert-success::before {
+            content: '✓  ';
+            font-weight: 700;
+        }
 
         .alert-error {
             background: #fef2f2;
@@ -130,7 +157,9 @@
             word-break: break-word;
         }
 
-        details { margin-top: .5rem; }
+        details {
+            margin-top: .5rem;
+        }
 
         summary {
             cursor: pointer;
@@ -140,7 +169,9 @@
             user-select: none;
         }
 
-        summary:hover { text-decoration: underline; }
+        summary:hover {
+            text-decoration: underline;
+        }
 
         .trace {
             margin-top: .6rem;
@@ -158,7 +189,9 @@
         }
 
         @media (max-width: 520px) {
-            .row-2, .row-3 { grid-template-columns: 1fr; }
+            .row-2, .row-3 {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -185,12 +218,14 @@
     @if ($errors->any())
         <div class="alert alert-error">
             <div class="error-message">
-                @foreach ($errors->all() as $e) {{ $e }}<br> @endforeach
+                @foreach ($errors->all() as $e)
+                    {{ $e }}<br>
+                @endforeach
             </div>
         </div>
     @endif
 
-    <form method="POST" action="{{ url('/send') }}">
+    <form method="POST" action="{{ route('send') }}">
         @csrf
 
         <div class="row-3">
@@ -204,11 +239,12 @@
             </div>
             <div class="field">
                 <label>Host</label>
-                <input type="text" name="host" value="{{ old('host') }}" placeholder="smtp.example.com">
+                <input type="text" name="host" value="{{ old('host', 'smtp.naver.com') }}"
+                       placeholder="smtp.example.com">
             </div>
             <div class="field">
                 <label>Port</label>
-                <input type="number" name="port" value="{{ old('port', '587') }}" placeholder="587">
+                <input type="number" name="port" value="{{ old('port', '465') }}" placeholder="587">
             </div>
         </div>
 
@@ -219,13 +255,14 @@
             </div>
             <div class="field">
                 <label>Password</label>
-                <input type="password" name="password" value="{{ old('password') }}" placeholder="••••••••">
+                <input type="password" name="password" value="{{ old('password') }}" placeholder="••••••••"
+                       autocomplete="new-password">
             </div>
             <div class="field">
                 <label>Encryption</label>
                 <select name="encryption">
-                    <option value="tls" {{ old('encryption', 'tls') === 'tls' ? 'selected' : '' }}>tls</option>
-                    <option value="ssl" {{ old('encryption') === 'ssl' ? 'selected' : '' }}>ssl</option>
+                    <option value="tls" {{ old('encryption') === 'tls' ? 'selected' : '' }}>tls</option>
+                    <option value="ssl" {{ old('encryption', 'ssl') === 'ssl' ? 'selected' : '' }}>ssl</option>
                     <option value="" {{ old('encryption') === '' ? 'selected' : '' }}>none</option>
                 </select>
             </div>
@@ -236,11 +273,12 @@
         <div class="row-2">
             <div class="field">
                 <label>From Address</label>
-                <input type="email" name="from_address" value="{{ old('from_address') }}" placeholder="noreply@example.com">
+                <input type="email" name="from_address" value="{{ old('from_address') }}"
+                       placeholder="noreply@example.com">
             </div>
             <div class="field">
                 <label>From Name</label>
-                <input type="text" name="from_name" value="{{ old('from_name') }}" placeholder="발신자 이름">
+                <input type="text" name="from_name" value="{{ old('from_name', '테스트 메일 발송') }}" placeholder="발신자 이름">
             </div>
         </div>
 
