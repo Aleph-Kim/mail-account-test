@@ -97,7 +97,7 @@
 </div>
 
 {{-- ── Main Card ── --}}
-<div class="w-full max-w-2xl rounded-xl bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.08)]">
+<div class="w-full max-w-6xl rounded-xl bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.08)]">
     <div class="mb-7 flex items-center justify-between gap-4">
         <h1 class="text-[1.375rem] font-bold text-slate-900">메일 발송 테스트</h1>
         <button type="button" onclick="openModal()"
@@ -178,10 +178,30 @@
                    class="w-full rounded-lg border-[1.5px] border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-indigo-500 focus:ring-[3px] focus:ring-indigo-500/15">
         </div>
 
-        <div class="mt-4 flex flex-col gap-1.5">
-            <label class="text-xs font-semibold uppercase tracking-wide text-slate-600">HTML 본문</label>
-            <textarea name="html_content" placeholder="<h1>안녕하세요</h1>&#10;<p>메일 본문을 입력하세요.</p>"
-                      class="min-h-[200px] w-full resize-y rounded-lg border-[1.5px] border-slate-200 px-3 py-2 font-mono text-sm leading-relaxed outline-none transition focus:border-indigo-500 focus:ring-[3px] focus:ring-indigo-500/15">{{ old('html_content') }}</textarea>
+        <div class="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div class="flex flex-col gap-1.5">
+                <label class="text-xs font-semibold uppercase tracking-wide text-slate-600">HTML 본문</label>
+                <textarea id="html-input" name="html_content" placeholder="<h1>안녕하세요</h1>&#10;<p>메일 본문을 입력하세요.</p>"
+                          class="h-80 w-full resize-y rounded-lg border-[1.5px] border-slate-200 px-3 py-2 font-mono text-sm leading-relaxed outline-none transition focus:border-indigo-500 focus:ring-[3px] focus:ring-indigo-500/15">{{ old('html_content') }}</textarea>
+            </div>
+
+            <div id="preview-section" class="flex flex-col gap-1.5">
+                <div class="flex items-center justify-between gap-2">
+                    <label class="shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-600">미리보기</label>
+                    <span class="text-right text-xs text-amber-600 font-medium">※ 실제 메일 클라이언트 환경에 따라 다를 수 있습니다.</span>
+                </div>
+                <div id="preview-warnings" class="hidden flex-col gap-1.5">
+                    <div class="rounded-lg border-[1.5px] border-red-200 bg-red-50 px-3 py-2.5">
+                        <p class="mb-2 text-xs font-semibold text-red-700">호환성 경고 — 아래 문법은 일부 메일 클라이언트에서 무시되거나 차단됩니다.</p>
+                        <ul id="warnings-list" class="flex flex-wrap gap-1.5"></ul>
+                    </div>
+                </div>
+                <iframe id="html-preview"
+                        class="flex-1 w-full rounded-lg border-[1.5px] border-slate-200 bg-white"
+                        style="min-height:220px;"
+                        sandbox="allow-same-origin"></iframe>
+                <p class="text-right text-xs text-amber-600">※ Gmail·Outlook 등 클라이언트마다 CSS 지원 범위가 달라 실제 수신 화면과 차이가 있을 수 있습니다.</p>
+            </div>
         </div>
 
         <button type="submit"
@@ -254,6 +274,66 @@
             row.querySelector('.btn-remove').classList.toggle('invisible', rows.length === 1 && i === 0);
         });
     }
+
+    const htmlInput = document.getElementById('html-input');
+    const previewSection = document.getElementById('preview-section');
+    const htmlPreview = document.getElementById('html-preview');
+    const previewWarnings = document.getElementById('preview-warnings');
+    const warningsList = document.getElementById('warnings-list');
+
+    const CHECKS = [
+        // 일반 (다수 클라이언트)
+        { re: /<script/i,                          label: '<script>',                reason: '모든 클라이언트에서 차단' },
+        { re: /<(?:video|audio|canvas)/i,           label: '<video/audio/canvas>',    reason: '대부분 미지원' },
+        { re: /<iframe/i,                          label: '<iframe>',                reason: '대부분 차단' },
+        { re: /<form[\s>\/]/i,                     label: '<form>',                  reason: 'Gmail 등에서 차단' },
+        { re: /<link[^>]+stylesheet/i,             label: '외부 CSS (<link>)',       reason: '대부분 차단' },
+        { re: /display\s*:\s*flex/i,               label: 'display:flex',            reason: 'Outlook 미지원' },
+        { re: /display\s*:\s*grid/i,               label: 'display:grid',            reason: '대부분 미지원' },
+        { re: /position\s*:\s*(fixed|sticky)/i,    label: 'position:fixed/sticky',   reason: '미지원' },
+        { re: /var\s*\(--/i,                       label: 'CSS 변수 (var)',           reason: '미지원' },
+        { re: /@font-face/i,                       label: '@font-face',              reason: '일부만 지원' },
+        { re: /fonts\.googleapis\.com/i,           label: 'Google Fonts',            reason: 'Gmail 등에서 차단' },
+        { re: /linear-gradient|radial-gradient/i,  label: 'CSS gradient',            reason: 'Outlook 미지원' },
+        { re: /background-image\s*:/i,             label: 'background-image',        reason: 'Outlook에서 무시될 수 있음' },
+        { re: /border-radius\s*:/i,                label: 'border-radius',           reason: 'Outlook 미지원' },
+        { re: /box-shadow\s*:/i,                   label: 'box-shadow',              reason: 'Outlook 미지원' },
+        { re: /transition\s*:|animation\s*:/i,     label: 'transition/animation',    reason: '대부분 미지원' },
+        // 네이버 메일 전용
+        { re: /<style[\s>]/i,                      label: '<style>',                 reason: '네이버에서 전체 제거, 인라인 스타일만 적용됨',  client: '네이버' },
+        { re: /class\s*=/i,                        label: 'class 속성',              reason: '<style> 제거로 클래스 스타일 무효화',           client: '네이버' },
+        { re: /@media/i,                           label: '@media 쿼리',             reason: '<style> 제거로 미디어 쿼리 무효화',             client: '네이버' },
+        { re: /<svg/i,                             label: '<svg>',                   reason: '네이버에서 렌더링 불가',                        client: '네이버' },
+        { re: /position\s*:\s*absolute/i,          label: 'position:absolute',       reason: '네이버 레이아웃 컨테이너에 의해 깨질 수 있음',  client: '네이버' },
+        { re: /max-width\s*:/i,                    label: 'max-width',               reason: '네이버 뷰어 래퍼에 의해 무시될 수 있음',        client: '네이버' },
+    ];
+
+    const emptyPreview = '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:0.8rem;font-family:sans-serif;user-select:none;">HTML을 입력하면 여기에 미리보기가 표시됩니다.</div>';
+
+    function updatePreview() {
+        const html = htmlInput.value.trim();
+        htmlPreview.srcdoc = html || emptyPreview;
+
+        const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+        const hits = html ? CHECKS.filter(c => c.re.test(html)) : [];
+        if (hits.length) {
+            warningsList.innerHTML = hits.map(h =>
+                `<li class="inline-flex items-center gap-1 rounded-md bg-red-100 px-2 py-0.5 text-xs text-red-800">
+                    <code class="font-mono font-semibold">${esc(h.label)}</code>
+                    <span class="text-red-500">— ${esc(h.reason)}</span>
+                </li>`
+            ).join('');
+            previewWarnings.classList.remove('hidden');
+            previewWarnings.classList.add('flex');
+        } else {
+            previewWarnings.classList.add('hidden');
+            previewWarnings.classList.remove('flex');
+        }
+    }
+
+    htmlInput.addEventListener('input', updatePreview);
+    updatePreview();
 </script>
 </body>
 </html>
